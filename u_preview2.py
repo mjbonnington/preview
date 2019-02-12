@@ -4,10 +4,10 @@
 #
 # Nuno Pereira <nuno.pereira@unit.tv>
 # Mike Bonnington <mike.bonnington@unit.tv>
-# (c) 2014-2018
+# (c) 2014-2019
 #
 # A generic UI for previewing animations, replaces Maya's playblast interface.
-# TODO: Add Nuke support for flipbook viewer.
+# TODO: Add Nuke/Houdini support.
 
 
 import os
@@ -77,6 +77,7 @@ class PreviewUI(QtWidgets.QMainWindow, UI.TemplateUI):
 		# Connect signals & slots
 		self.ui.name_lineEdit.textChanged.connect(self.checkFilename)
 		#self.ui.nameUpdate_toolButton.clicked.connect(self.updateFilename)
+		self.ui.format_comboBox.currentIndexChanged.connect(self.setCreateDaily)
 		self.ui.camera_radioButton.toggled.connect(self.updateCameras)
 		self.ui.resolution_comboBox.currentIndexChanged.connect(self.updateResGrp)
 		self.ui.x_spinBox.valueChanged.connect(self.storeRes)
@@ -143,6 +144,17 @@ class PreviewUI(QtWidgets.QMainWindow, UI.TemplateUI):
 		""" Insert token into filename field.
 		"""
 		self.ui.name_lineEdit.insert(token)
+
+
+	def setCreateDaily(self):
+		""" Disable dailies creation if format is set to QuickTime movie.
+		"""
+		if self.sender().currentText() == "QuickTime":
+			#self.createDailyTemp = self.createDaily
+			self.ui.createDaily_checkBox.setCheckState(QtCore.Qt.Unchecked)
+			self.ui.createDaily_checkBox.setEnabled(False)
+		else:
+			self.ui.createDaily_checkBox.setEnabled(True)
 
 
 	def updateCameras(self):
@@ -384,7 +396,7 @@ class PreviewUI(QtWidgets.QMainWindow, UI.TemplateUI):
 			self.offscreen = self.getCheckBoxValue(self.ui.offscreen_checkBox)
 			self.noSelect = self.getCheckBoxValue(self.ui.noSelection_checkBox)
 			self.guides = self.getCheckBoxValue(self.ui.guides_checkBox)
-			self.slate = self.getCheckBoxValue(self.ui.slate_checkBox)
+			self.burnin = self.getCheckBoxValue(self.ui.burnin_checkBox)
 			self.viewer = self.getCheckBoxValue(self.ui.launchViewer_checkBox)
 			self.createDaily = self.getCheckBoxValue(self.ui.createDaily_checkBox)
 			self.interruptible = True
@@ -414,7 +426,7 @@ class PreviewUI(QtWidgets.QMainWindow, UI.TemplateUI):
 			                                     offscreen=self.offscreen, 
 			                                     noSelect=self.noSelect, 
 			                                     guides=self.guides, 
-			                                     slate=self.slate, 
+			                                     burnin=self.burnin, 
 			                                     interruptible=self.interruptible)
 			previewOutput = previewSetup.appPreview()
 			if previewOutput[0] == "Completed":  # Playblast completed without interruption
@@ -457,14 +469,19 @@ class PreviewUI(QtWidgets.QMainWindow, UI.TemplateUI):
 	def makeDaily(self, outputFilePath):
 		""" Create daily from playblast.
 		"""
-		if self.format == "JPEG sequence":
-			dailyFromApp.makeDaily(app=os.environ['UHUB_UPREVIEW_APPCONNECT'], 
-								   outputFile=outputFilePath, 
-								   sourceFile=appConnect.getScene(fullPath=True))
-			return True
-		else:
+		if self.format == "QuickTime":
 			print("Warning: Cannot create dailies from QuickTime movies.")
 			return False
+		else:
+			# Quick hack to replace frame number padding with first frame
+			outputFilePath = outputFilePath.replace(
+				"####", 
+				os.environ['UHUB_STARTFRAME'])
+			dailyFromApp.makeDaily(
+				app=os.environ['UHUB_UPREVIEW_APPCONNECT'], 
+				outputFile=outputFilePath, 
+				sourceFile=appConnect.getScene(fullPath=True))
+			return True
 
 
 	def sanitize(instr, pattern=r'\W', replace=''):

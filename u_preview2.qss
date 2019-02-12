@@ -873,6 +873,7 @@ QPushButton:hover, QPushButton:checked:hover {
 QPushButton:pressed, QPushButton:checked:pressed {
 	padding: 2px 1px 1px 2px;
 	background: rgba(211, 186, 135);
+	color: #000;
 }
 
 QPushButton:checked {

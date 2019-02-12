@@ -4,7 +4,7 @@
 #
 # Nuno Pereira <nuno.pereira@unit.tv>
 # Mike Bonnington <mike.bonnington@unit.tv>
-# (c) 2014-2018
+# (c) 2014-2019
 #
 # Generate Maya playblasts for u-preview.
 
@@ -20,19 +20,23 @@ import time
 
 class Preview():
 
-	def __init__(self, outputDir, outputFile, format, activeView, camera, 
-				 res, frRange, offscreen, noSelect, guides, slate, 
+	def __init__(self, outputDir, outputFile, outputFormat, activeView, camera, 
+				 res, frRange, offscreen, noSelect, guides, burnin, 
 				 interruptible):
 		self.playblastDir = outputDir
 		self.outputFile = outputFile
-		if format == "JPEG sequence":
-			self.format = "image"
-			self.compression = "jpg"
-			self.sound = ""
-		elif format == "QuickTime":
-			self.format = "qt"
+		if outputFormat == "QuickTime":
+			self.outputFormat = "qt"
 			self.compression = "H.264"
 			self.sound = self.getActiveAudioNode()
+		elif outputFormat == "JPEG sequence":
+			self.outputFormat = "image"
+			self.compression = "jpg"
+			self.sound = ""
+		elif outputFormat == "TIFF sequence":
+			self.outputFormat = "image"
+			self.compression = "tif"
+			self.sound = ""
 		self.activeView = activeView
 		self.camera = camera
 		self.res = (int(res[0]), int(res[1]))
@@ -40,7 +44,7 @@ class Preview():
 		self.offscreen = offscreen
 		self.noSelect = noSelect
 		self.guides = guides
-		self.slate = slate
+		self.burnin = burnin
 		self.interruptible = interruptible
 
 
@@ -76,7 +80,7 @@ class Preview():
 
 
 	# ------------------------------------------------------------------------
-	# Slate / HUD
+	# Burn-in / HUD
 
 	def displayHUD(self, query=False, setValue=True):
 		""" Show, hide or query the entire HUD.
@@ -169,28 +173,19 @@ class Preview():
 		return mc.currentTime(q=True)
 
 
-	def slateOn(self):
-		""" Create custom slate elements and add them to the HUD.
-			Names of all custom HUDs must begin with 'custom_slate'.
+	def showBurnin(self):
+		""" Create custom elements and add them to the HUD.
+			Names of all custom HUDs must begin with 'custom_hud'.
 		"""
 		# Hide all current HUD elements
 		self.showHUD(0)
 
 		# Delete pre-existing custom HUD elements
-		self.slateOff()
+		self.hideBurnin()
 
 		# Create custom HUD elements
-		section = 0  # Top left (was 2 - top middle)
-		mc.headsUpDisplay('custom_slate_header', 
-		                  section=section, 
-		                  block=mc.headsUpDisplay(nextFreeBlock=section), 
-		                  blockSize='small', 
-		                  command=lambda *args: self.hudHeader(), 
-		                  ev='playblasting', 
-		                  dataFontSize='large')
-
 		section = 0  # Top left
-		mc.headsUpDisplay('custom_slate_job', 
+		mc.headsUpDisplay('custom_hud_job', 
 		                  section=section, 
 		                  block=mc.headsUpDisplay(nextFreeBlock=section), 
 		                  blockSize='small', 
@@ -198,28 +193,17 @@ class Preview():
 		                  ev='playblasting', 
 		                  dataFontSize='small')
 
-		section = 4  # Top right
-		mc.headsUpDisplay('custom_slate_scene', 
+		section = 3  # Top centre-right
+		mc.headsUpDisplay('custom_hud_artist', 
 		                  section=section, 
 		                  block=mc.headsUpDisplay(nextFreeBlock=section), 
 		                  blockSize='small', 
-		                  #blockAlignment='right', 
-		                  command=lambda *args: self.hudScene(), 
+		                  command=lambda *args: self.hudArtist(), 
 		                  ev='playblasting', 
 		                  dataFontSize='small')
 
 		section = 4  # Top right
-		mc.headsUpDisplay('custom_slate_camera', 
-		                  section=section, 
-		                  block=mc.headsUpDisplay(nextFreeBlock=section), 
-		                  blockSize='small', 
-		                  #blockAlignment='right', 
-		                  command=lambda *args: self.hudCamera(), 
-		                  ev='playblasting', 
-		                  dataFontSize='small')
-
-		section = 5  # Bottom left
-		mc.headsUpDisplay('custom_slate_time', 
+		mc.headsUpDisplay('custom_hud_time', 
 		                  section=section, 
 		                  block=mc.headsUpDisplay(nextFreeBlock=section), 
 		                  blockSize='small', 
@@ -228,16 +212,36 @@ class Preview():
 		                  dataFontSize='small')
 
 		section = 5  # Bottom left
-		mc.headsUpDisplay('custom_slate_artist', 
+		mc.headsUpDisplay('custom_hud_scene', 
 		                  section=section, 
 		                  block=mc.headsUpDisplay(nextFreeBlock=section), 
 		                  blockSize='small', 
-		                  command=lambda *args: self.hudArtist(), 
+		                  #blockAlignment='right', 
+		                  command=lambda *args: self.hudScene(), 
+		                  ev='playblasting', 
+		                  dataFontSize='small')
+
+		section = 5  # Bottom left
+		mc.headsUpDisplay('custom_hud_camera', 
+		                  section=section, 
+		                  block=mc.headsUpDisplay(nextFreeBlock=section), 
+		                  blockSize='small', 
+		                  #blockAlignment='right', 
+		                  command=lambda *args: self.hudCamera(), 
+		                  ev='playblasting', 
+		                  dataFontSize='small')
+
+		section = 8  # Bottom centre-right
+		mc.headsUpDisplay('custom_hud_header', 
+		                  section=section, 
+		                  block=mc.headsUpDisplay(nextFreeBlock=section), 
+		                  blockSize='small', 
+		                  command=lambda *args: self.hudHeader(), 
 		                  ev='playblasting', 
 		                  dataFontSize='small')
 
 		section = 9  # Bottom right
-		mc.headsUpDisplay('custom_slate_frame', 
+		mc.headsUpDisplay('custom_hud_frame', 
 		                  section=section, 
 		                  block=mc.headsUpDisplay(nextFreeBlock=section), 
 		                  blockSize='small', 
@@ -246,17 +250,17 @@ class Preview():
 		                  dataFontSize='large')
 
 
-	def slateOff(self):
-		""" Remove the custom slate elements.
+	def hideBurnin(self):
+		""" Remove the custom HUD elements.
 		"""
 		hudLs = mc.headsUpDisplay(listHeadsUpDisplays=True)
 
 		for hud in hudLs:
-			if hud.startswith('custom_slate'):
+			if hud.startswith('custom_hud'):
 				if mc.headsUpDisplay(hud, exists=True):
 					mc.headsUpDisplay(hud, remove=True)
 
-	# End Slate / HUD
+	# End Burn-in / HUD
 	# ------------------------------------------------------------------------
 
 
@@ -314,10 +318,10 @@ class Preview():
 			selectionHighlighting = mc.modelEditor(self.activeView, q=1, sel=1)
 			mc.modelEditor(self.activeView, e=1, sel=False)
 
-		# Display custom slate
-		if self.slate:
+		# Display custom burn-in
+		if self.burnin:
 			self.displayHUD(setValue=True)
-			self.slateOn()
+			self.showBurnin()
 		else:
 			self.displayHUD(setValue=False)
 
@@ -339,9 +343,9 @@ class Preview():
 		output = self.run_playblast()
 
 		# Now reset things to their state prior to playblasting...
-		# Hide custom slate
-		if self.slate:
-			self.slateOff()
+		# Hide custom burn-in
+		if self.burnin:
+			self.hideBurnin()
 
 		# Restore selection highlighting
 		if self.noSelect:
@@ -370,9 +374,9 @@ class Preview():
 		# here.
 		else:
 			if self.interruptible:
-				if self.format == 'image':
+				if self.outputFormat == 'image':
 					output = os.path.join(self.playblastDir, '%s.#.%s' %(self.outputFile, self.compression))
-				elif self.format == 'qt':
+				elif self.outputFormat == 'qt':
 					output = os.path.join(self.playblastDir, self.outputFile)
 				return "Interrupted", output
 			else:  # Fail on interrupt
@@ -390,7 +394,7 @@ class Preview():
 		pb_args['width'] = self.res[0]
 		pb_args['height'] = self.res[1]
 		pb_args['percent'] = 100
-		pb_args['format'] = self.format
+		pb_args['format'] = self.outputFormat
 		pb_args['compression'] = self.compression
 		if self.sound:
 			pb_args['sound'] = self.sound

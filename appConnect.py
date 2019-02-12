@@ -4,7 +4,7 @@
 #
 # Nuno Pereira <nuno.pereira@unit.tv>
 # Mike Bonnington <mike.bonnington@unit.tv>
-# (c) 2014-2018
+# (c) 2014-2019
 #
 # App-specific functions for u-preview.
 
@@ -42,7 +42,7 @@ class AppConnect(object):
 	""" Connects u-preview to the relevant application and passes args to its
 		internal preview API.
 	"""
-	def __init__(self, fileInput, format, activeView, camera, res, frRange, offscreen, noSelect, guides, slate, interruptible):
+	def __init__(self, fileInput, format, activeView, camera, res, frRange, offscreen, noSelect, guides, burnin, interruptible):
 	#def __init__(self, **kwargs):
 		self.fileInput = fileInput
 		self.outputFile = os.path.split(self.fileInput)[1]
@@ -59,7 +59,7 @@ class AppConnect(object):
 		self.offscreen = offscreen
 		self.noSelect = noSelect
 		self.guides = guides
-		self.slate = slate
+		self.burnin = burnin
 		self.interruptible = interruptible
 
 
@@ -80,7 +80,7 @@ class AppConnect(object):
 			                                       self.offscreen, 
 			                                       self.noSelect, 
 			                                       self.guides, 
-			                                       self.slate, 
+			                                       self.burnin, 
 			                                       self.interruptible)
 			return previewSetup.playblast_()
 

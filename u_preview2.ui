@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>448</width>
-    <height>424</height>
+    <height>426</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -175,6 +175,11 @@ QToolButton:pressed, QToolButton:checked:pressed {
          <item>
           <property name="text">
            <string>JPEG sequence</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>TIFF sequence</string>
           </property>
          </item>
          <item>
@@ -623,18 +628,18 @@ QToolButton:pressed, QToolButton:checked:pressed {
         </widget>
        </item>
        <item row="1" column="1">
-        <widget class="QCheckBox" name="slate_checkBox">
+        <widget class="QCheckBox" name="burnin_checkBox">
          <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Apply slate.&lt;/p&gt;&lt;p&gt;(frame number, camera info, date &amp;amp; time, artist name, etc.)&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Apply burn-in.&lt;/p&gt;&lt;p&gt;Overlays the picture with data such as frame number, camera info, date &amp;amp; time, artist name, etc.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
          </property>
          <property name="text">
-          <string>Slate</string>
+          <string>Burn-in</string>
          </property>
          <property name="checked">
           <bool>true</bool>
          </property>
          <property name="xmlTag" stdset="0">
-          <string>slate</string>
+          <string>burnin</string>
          </property>
         </widget>
        </item>
@@ -722,7 +727,7 @@ QToolButton:pressed, QToolButton:checked:pressed {
   <tabstop>guides_checkBox</tabstop>
   <tabstop>launchViewer_checkBox</tabstop>
   <tabstop>noSelection_checkBox</tabstop>
-  <tabstop>slate_checkBox</tabstop>
+  <tabstop>burnin_checkBox</tabstop>
   <tabstop>createDaily_checkBox</tabstop>
   <tabstop>message_plainTextEdit</tabstop>
   <tabstop>preview_pushButton</tabstop>
