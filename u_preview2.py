@@ -3,10 +3,11 @@
 # u_preview2.py
 #
 # Nuno Pereira <nuno.pereira@unit.tv>
-# Mike Bonnington <mike.bonnington@unit.tv>
+# Mike Bonnington <mjbonnington@gmail.com>
 # (c) 2014-2019
 #
-# A generic UI for previewing animations, replaces Maya's playblast interface.
+# A streamlined tool for previewing animations, designed to replace Maya's
+# playblast interface.
 # TODO: Add Nuke/Houdini support.
 
 
@@ -15,64 +16,61 @@ import re
 import subprocess
 import sys
 
-from Qt import QtCore, QtGui, QtWidgets  # u_shared.Qt
-import ui_template as UI
+from Qt import QtCore, QtGui, QtWidgets
 
 # Import custom modules
+import ui_template as UI
+
 import appConnect
 #import verbose
-from u_vfx.u_publish.u_daily import dailyFromApp
-from u_vfx.core import Launch
+#from u_vfx.u_publish.u_daily import dailyFromApp
+#from u_vfx.core import Launch
 
 
 # ----------------------------------------------------------------------------
 # Configuration
 # ----------------------------------------------------------------------------
 
+VERSION = "0.2.3"
+
 cfg = {}
 
 # Set window title and object names
-cfg['WINDOW_TITLE'] = "u-preview"
-cfg['WINDOW_OBJECT'] = "uPreviewUI"
-cfg['VENDOR'] = "UNIT"
+cfg['window_title'] = "MJB Preview"
+cfg['window_object'] = "previewUI"
 
 # Set the UI and the stylesheet
-cfg['UI_FILE'] = "u_preview2.ui"
-cfg['STYLESHEET'] = "u_preview2.qss"  # Set to None to use the parent app's stylesheet
+cfg['ui_file'] = "preview.ui"
+cfg['stylesheet'] = "style.qss"  # Set to None to use the parent app's stylesheet
 
 # Other options
-cfg['PREFS_FILE'] = os.path.join(os.environ['UHUB_USER_PREFS_LOCAL_PATH'], 'u_preview2.json')
-cfg['STORE_WINDOW_GEOMETRY'] = True
-cfg['DOCK_WITH_MAYA_UI'] = False
-cfg['DOCK_WITH_NUKE_UI'] = False
+cfg['prefs_file'] = os.path.join(os.environ['PREVIEW_USER_PREFS_LOCAL_PATH'], 'preview_prefs.json')
+cfg['store_window_geometry'] = True
+
+# DOCK_WITH_MAYA_UI = False
+# DOCK_WITH_NUKE_UI = False
 
 
 # ----------------------------------------------------------------------------
-# Main window class
+# Begin main window class
 # ----------------------------------------------------------------------------
 
 class PreviewUI(QtWidgets.QMainWindow, UI.TemplateUI):
-	""" u-preview UI.
+	""" Preview UI.
 	"""
 	def __init__(self, parent=None):
 		super(PreviewUI, self).__init__(parent)
 		self.parent = parent
 
-		#self.setupUI(**cfg)
-		self.setupUI(window_object=cfg['WINDOW_OBJECT'], 
-		             window_title=cfg['WINDOW_TITLE'], 
-		             ui_file=cfg['UI_FILE'], 
-		             stylesheet=cfg['STYLESHEET'], 
-		             prefs_file=cfg['PREFS_FILE'], 
-		             store_window_geometry=cfg['STORE_WINDOW_GEOMETRY'])
-
+		self.setupUI(**cfg)
 		self.conformFormLayoutLabels(self.ui.centralwidget)
 
-		# Set window flags
+		# Set window icon, flags and other Qt attributes
 		self.setWindowFlags(QtCore.Qt.Tool)
+		#self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
 
-		# Set other Qt attributes
-		self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+		# Set icons
+		self.ui.nameUpdate_toolButton.setIcon(self.iconSet('configure.svg'))
 
 		# Connect signals & slots
 		self.ui.name_lineEdit.textChanged.connect(self.checkFilename)
@@ -92,12 +90,16 @@ class PreviewUI(QtWidgets.QMainWindow, UI.TemplateUI):
 		self.addContextMenu(self.ui.nameUpdate_toolButton, "Insert scene name token <Scene>", lambda: self.insertFilenameToken("<Scene>"))
 		self.addContextMenu(self.ui.nameUpdate_toolButton, "Insert camera name token <Camera>", lambda: self.insertFilenameToken("<Camera>"))
 
-		# Set SVG icons
-		#self.ui.nameUpdate_toolButton.setIcon(self.setSVGIcon('configure'))
-
 		# Set input validators
 		alphanumeric_validator = QtGui.QRegExpValidator(QtCore.QRegExp(r'[\w<>]+'), self.ui.name_lineEdit) #r'[\w\.-]+'
 		self.ui.name_lineEdit.setValidator(alphanumeric_validator)
+
+		# Show initialisation message
+		info_ls = []
+		for key, value in self.getInfo().items():
+			info_ls.append("{} {}".format(key, value))
+		info_str = " | ".join(info_ls)
+		print("%s v%s\n%s" % (cfg['window_title'], VERSION, info_str))
 
 
 	def display(self):
@@ -116,10 +118,10 @@ class PreviewUI(QtWidgets.QMainWindow, UI.TemplateUI):
 	def initSettings(self):
 		""" Initialise settings.
 		"""
-		self.activeView = self.xd.getValue('preview', 'activeview') #None
+		self.activeView = self.prefs.getValue('preview', 'activeview') #None
 		# self.ui.activeView_lineEdit.hide()
 		self.ui.message_plainTextEdit.hide()
-		self.setFixedHeight(self.minimumSizeHint().height())
+		#self.setFixedHeight(self.minimumSizeHint().height())
 
 		if not self.ui.name_lineEdit.text():
 			self.updateFilename()
@@ -194,7 +196,7 @@ class PreviewUI(QtWidgets.QMainWindow, UI.TemplateUI):
 			self.ui.resSep_label.setEnabled(True)
 
 			# Read values from user settings
-			value = self.xd.getValue('preview', 'customresolution')
+			value = self.prefs.getValue('preview', 'customresolution')
 			if value is not None:
 				try:
 					res = value.split('x')
@@ -209,14 +211,14 @@ class PreviewUI(QtWidgets.QMainWindow, UI.TemplateUI):
 			self.ui.resSep_label.setEnabled(False)
 
 			if resMode == "Shot default":
-				res = int(os.environ['UHUB_RESOLUTIONX']), int(os.environ['UHUB_RESOLUTIONY'])
+				res = int(os.environ['PREVIEW_RESOLUTION_X']), int(os.environ['PREVIEW_RESOLUTION_Y'])
 			elif resMode == "Proxy":
 				try:
-					proxy_scale = float(os.environ['UHUB_PROXY_SCALE'])
+					proxy_scale = float(os.environ['PREVIEW_PROXY_SCALE'])
 				except:
 					proxy_scale = 0.5
-				resX = float(os.environ['UHUB_RESOLUTIONX']) * proxy_scale
-				resY = float(os.environ['UHUB_RESOLUTIONY']) * proxy_scale
+				resX = float(os.environ['PREVIEW_RESOLUTION_X']) * proxy_scale
+				resY = float(os.environ['PREVIEW_RESOLUTION_Y']) * proxy_scale
 				res = int(resX), int(resY)
 				#res = int(os.environ['PROXY_RESOLUTIONX']), int(os.environ['PROXY_RESOLUTIONY'])
 			elif resMode == "Render settings":
@@ -255,7 +257,7 @@ class PreviewUI(QtWidgets.QMainWindow, UI.TemplateUI):
 			self.ui.rangeSep_label.setEnabled(True)
 
 			# Read values from user settings
-			value = self.xd.getValue('preview', 'customframerange')
+			value = self.prefs.getValue('preview', 'customframerange')
 			if value is not None:
 				try:
 					frRange = value.split('-')
@@ -272,7 +274,7 @@ class PreviewUI(QtWidgets.QMainWindow, UI.TemplateUI):
 			self.ui.end_spinBox.setMinimum(0)
 
 			if rangeMode == "Shot default":
-				frRange = int(os.environ['UHUB_STARTFRAME']), int(os.environ['UHUB_ENDFRAME'])
+				frRange = int(os.environ['PREVIEW_STARTFRAME']), int(os.environ['PREVIEW_ENDFRAME'])
 			elif rangeMode == "Timeline":
 				frRange = appConnect.getFrameRange()
 			elif rangeMode == "Current frame only":
@@ -306,7 +308,7 @@ class PreviewUI(QtWidgets.QMainWindow, UI.TemplateUI):
 			print("Filename preview: '%s'" %filename)
 			self.ui.preview_pushButton.setEnabled(True)
 			self.ui.message_plainTextEdit.hide()
-			self.setFixedHeight(self.minimumSizeHint().height())
+			#self.setFixedHeight(self.minimumSizeHint().height())
 			return filename
 		else:
 			msg = "Invalid output name."
@@ -314,7 +316,7 @@ class PreviewUI(QtWidgets.QMainWindow, UI.TemplateUI):
 			self.ui.preview_pushButton.setEnabled(False)
 			self.ui.message_plainTextEdit.setPlainText(msg)
 			self.ui.message_plainTextEdit.show()
-			self.setFixedHeight(self.minimumSizeHint().height())
+			#self.setFixedHeight(self.minimumSizeHint().height())
 			return False
 
 
@@ -380,7 +382,7 @@ class PreviewUI(QtWidgets.QMainWindow, UI.TemplateUI):
 			self.fileInput = self.checkFilename() #self.ui.name_lineEdit.text()
 
 			# Get file format
-			self.format = self.ui.format_comboBox.currentText()
+			self.outputFormat = self.ui.format_comboBox.currentText()
 
 			# Get camera
 			# self.updateCameras()
@@ -418,7 +420,7 @@ class PreviewUI(QtWidgets.QMainWindow, UI.TemplateUI):
 				self.showMinimized()
 
 			previewSetup = appConnect.AppConnect(fileInput=self.fileInput, 
-			                                     format=self.format, 
+			                                     format=self.outputFormat, 
 			                                     activeView=self.activeView, 
 			                                     camera=self.camera, 
 			                                     res=self.res, 
@@ -437,18 +439,18 @@ class PreviewUI(QtWidgets.QMainWindow, UI.TemplateUI):
 				if self.createDaily:
 					self.makeDaily(outputFilePath)
 				self.ui.message_plainTextEdit.hide()
-				self.setFixedHeight(self.minimumSizeHint().height())
+				#self.setFixedHeight(self.minimumSizeHint().height())
 			elif previewOutput[0] == "Interrupted":  # Playblast interrupted
 				# print(previewOutput[1])
 				outputFilePath = previewOutput[1]
 				if self.viewer:
 					self.launchViewer(outputFilePath)
 				self.ui.message_plainTextEdit.hide()
-				self.setFixedHeight(self.minimumSizeHint().height())
+				#self.setFixedHeight(self.minimumSizeHint().height())
 			else:  # Playblast failed
 				self.ui.message_plainTextEdit.setPlainText(previewOutput[1])
 				self.ui.message_plainTextEdit.show()
-				self.setFixedHeight(self.minimumSizeHint().height())
+				#self.setFixedHeight(self.minimumSizeHint().height())
 
 			# Restore window
 			if not self.offscreen and showUI:
@@ -460,27 +462,27 @@ class PreviewUI(QtWidgets.QMainWindow, UI.TemplateUI):
 	def launchViewer(self, outputFilePath):
 		""" Launch viewer.
 		"""
-		if self.format == "QuickTime":
+		if self.outputFormat == "QuickTime":
 			outputFilePath += ".mov"
 
-		Launch.djvView(outputFilePath)
+		#Launch.djvView(outputFilePath)
 
 
 	def makeDaily(self, outputFilePath):
 		""" Create daily from playblast.
 		"""
-		if self.format == "QuickTime":
+		if self.outputFormat == "QuickTime":
 			print("Warning: Cannot create dailies from QuickTime movies.")
 			return False
 		else:
 			# Quick hack to replace frame number padding with first frame
 			outputFilePath = outputFilePath.replace(
 				"####", 
-				os.environ['UHUB_STARTFRAME'])
-			dailyFromApp.makeDaily(
-				app=os.environ['UHUB_UPREVIEW_APPCONNECT'], 
-				outputFile=outputFilePath, 
-				sourceFile=appConnect.getScene(fullPath=True))
+				os.environ['PREVIEW_STARTFRAME'])
+			# dailyFromApp.makeDaily(
+			# 	app=os.environ['PREVIEW_UPREVIEW_APPCONNECT'], 
+			# 	outputFile=outputFilePath, 
+			# 	sourceFile=appConnect.getScene(fullPath=True))
 			return True
 
 
@@ -503,27 +505,31 @@ class PreviewUI(QtWidgets.QMainWindow, UI.TemplateUI):
 # Run functions - MOVE TO TEMPLATE MODULE?
 # ----------------------------------------------------------------------------
 
-def run_maya(showUI=True):
+def run_maya(session, showUI=True, **kwargs):
 	""" Run in Maya.
 	"""
-	os.environ['UHUB_UPREVIEW_APPCONNECT'] = 'maya'  # Temporary fudge
+	os.environ['PREVIEW_APPCONNECT'] = 'maya'  # Temporary fudge
 
-	UI._maya_delete_ui(cfg['WINDOW_OBJECT'], cfg['WINDOW_TITLE'])  # Delete any already existing UI
-	previewApp = PreviewUI(parent=UI._maya_main_window())
+	try:
+		if showUI:  # Open the Preview UI before playblasting
+			session.previewUI.display()
 
-	if showUI:  # Show the UI
-		previewApp.display()
-	else:  # Run playblast without displaying the UI
-		previewApp.initSettings()
-		previewApp.preview(showUI=showUI)
-		# previewApp.hide()
+		else:  # Run playblast without displaying the UI
+			session.previewUI.initSettings()
+			session.previewUI.preview(showUI=showUI)
+			# session.previewUI.hide()
 
-	# if not cfg['DOCK_WITH_MAYA_UI']:
+	except:  # Always display the UI on first run per session
+		UI._maya_delete_ui(cfg['window_object'], cfg['window_title'])  # Delete any existing UI
+		session.previewUI = PreviewUI(parent=UI._maya_main_window())
+		session.previewUI.display(**kwargs)
+
+	# if not DOCK_WITH_MAYA_UI:
 	# 	previewApp.display(**kwargs)  # Show the UI
-	# elif cfg['DOCK_WITH_MAYA_UI']:
+	# elif DOCK_WITH_MAYA_UI:
 	# 	allowed_areas = ['right', 'left']
-	# 	mc.dockControl(cfg['WINDOW_TITLE'], label=cfg['WINDOW_TITLE'], area='left', 
-	# 	               content=cfg['WINDOW_OBJECT'], allowedArea=allowed_areas)
+	# 	mc.dockControl(cfg['window_title'], label=cfg['window_title'], area='left', 
+	# 	               content=cfg['window_object'], allowedArea=allowed_areas)
 
 
 # def run_nuke(**kwargs):
@@ -538,22 +544,22 @@ def run_maya(showUI=True):
 # 			If you want the UI to be modal:
 # 			`previewApp.ui.setWindowModality(QtCore.Qt.WindowModal)`
 # 	"""
-# 	UI._nuke_delete_ui(cfg['WINDOW_OBJECT'], cfg['WINDOW_TITLE'])  # Delete any already existing UI
+# 	UI._nuke_delete_ui(cfg['window_object'], cfg['window_title'])  # Delete any already existing UI
 
-# 	if not cfg['DOCK_WITH_NUKE_UI']:
+# 	if not DOCK_WITH_NUKE_UI:
 # 		previewApp = PreviewUI(parent=UI._nuke_main_window())
 # 		previewApp.setWindowFlags(QtCore.Qt.Tool)
 # 		previewApp.display(**kwargs)  # Show the UI
-# 	elif cfg['DOCK_WITH_NUKE_UI']:
+# 	elif DOCK_WITH_NUKE_UI:
 # 		prefix = ''
 # 		basename = os.path.basename(__file__)
 # 		module_name = basename[: basename.rfind('.')]
 # 		if __name__ == module_name:
 # 			prefix = module_name + '.'
 # 		panel = nukescripts.panels.registerWidgetAsPanel(
-# 			widget=prefix + cfg['WINDOW_TITLE'],  # module_name.Class_name
-# 			name=cfg['WINDOW_TITLE'],
-# 			id='uk.co.thefoundry.' + cfg['WINDOW_TITLE'],
+# 			widget=prefix + cfg['window_title'],  # module_name.Class_name
+# 			name=cfg['window_title'],
+# 			id='uk.co.thefoundry.' + cfg['window_title'],
 # 			create=True)
 # 		pane = nuke.getPaneFor('Properties.1')
 # 		panel.addToPane(pane)
@@ -563,16 +569,15 @@ def run_maya(showUI=True):
 
 # # Detect environment and run application
 # if os.environ['IC_ENV'] == 'STANDALONE':
-# 	verbose.print_(%cfg['WINDOW_TITLE'])
+# 	verbose.print_(%cfg['window_title'])
 # elif os.environ['IC_ENV'] == 'MAYA':
 # 	import maya.cmds as mc
-# 	verbose.print_("%s for Maya" %cfg['WINDOW_TITLE'])
+# 	verbose.print_("%s for Maya" %cfg['window_title'])
 # 	# run_maya()
 # elif os.environ['IC_ENV'] == 'NUKE':
 # 	import nuke
 # 	import nukescripts
-# 	verbose.print_("%s for Nuke" %cfg['WINDOW_TITLE'])
+# 	verbose.print_("%s for Nuke" %cfg['window_title'])
 # 	# run_nuke()
 # # elif __name__ == '__main__':
 # # 	run_standalone()
-

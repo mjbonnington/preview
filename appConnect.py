@@ -15,20 +15,20 @@ import os
 # Detect environment and import approprate modules
 try:
 	import maya.cmds as mc
-	#os.environ['UHUB_UPREVIEW_APPCONNECT'] = 'maya'
+	#os.environ['PREVIEW_APPCONNECT'] = 'maya'
 except ImportError:
 	pass
 
 try:
 	import hou
-	#os.environ['UHUB_UPREVIEW_APPCONNECT'] = 'houdini'
+	#os.environ['PREVIEW_APPCONNECT'] = 'houdini'
 except ImportError:
 	pass
 
 try:
 	import nuke
 	import nukescripts
-	#os.environ['UHUB_UPREVIEW_APPCONNECT'] = 'nuke'
+	#os.environ['PREVIEW_APPCONNECT'] = 'nuke'
 except ImportError:
 	pass
 
@@ -67,8 +67,8 @@ class AppConnect(object):
 		""" Detect environment & begin preview.
 		"""
 		#if os.environ['IC_ENV'] == 'MAYA':
-		if os.environ['UHUB_UPREVIEW_APPCONNECT'] == 'maya':
-			self.outputDir = os.path.join(os.environ['UHUB_MAYA_UPREVIEW_PATH'], self.fileInput)
+		if os.environ['PREVIEW_APPCONNECT'] == 'maya':
+			self.outputDir = os.path.join(mc.workspace(q=True, active=True), 'playblasts', self.fileInput)
 			import u_preview2_maya
 			previewSetup = u_preview2_maya.Preview(self.outputDir, 
 			                                       self.outputFile, 
@@ -94,7 +94,7 @@ def getScene(fullPath=False):
 		fullPath : returns full path to scene file.
 	"""
 	#if os.environ['IC_ENV'] == 'MAYA':
-	if os.environ['UHUB_UPREVIEW_APPCONNECT'] == 'maya':
+	if os.environ['PREVIEW_APPCONNECT'] == 'maya':
 		scene = mc.file(q=True, sceneName=True)
 
 		if fullPath:
@@ -115,7 +115,7 @@ def getCameras(renderableOnly=False):
 	camera_list = []
 
 	#if os.environ['IC_ENV'] == 'MAYA':
-	if os.environ['UHUB_UPREVIEW_APPCONNECT'] == 'maya':
+	if os.environ['PREVIEW_APPCONNECT'] == 'maya':
 		# noSelectText = ""
 		# camera_list = [noSelectText, ]
 		#camera_list = []
@@ -136,7 +136,7 @@ def getActiveCamera(panel):
 	""" Returns camera for the specified panel.
 	"""
 	#if os.environ['IC_ENV'] == 'MAYA':
-	if os.environ['UHUB_UPREVIEW_APPCONNECT'] == 'maya':
+	if os.environ['PREVIEW_APPCONNECT'] == 'maya':
 		try:
 			camera = mc.modelPanel(panel, cam=True, q=True)
 		except:
@@ -150,7 +150,7 @@ def getActiveView():
 		return False.
 	"""
 	#if os.environ['IC_ENV'] == 'MAYA':
-	if os.environ['UHUB_UPREVIEW_APPCONNECT'] == 'maya':
+	if os.environ['PREVIEW_APPCONNECT'] == 'maya':
 		panel = mc.getPanel(withFocus=True)
 		camera = getActiveCamera(panel)
 
@@ -165,7 +165,7 @@ def getResolution():
 		tuple (integer, integer).
 	"""
 	#if os.environ['IC_ENV'] == 'MAYA':
-	if os.environ['UHUB_UPREVIEW_APPCONNECT'] == 'maya':
+	if os.environ['PREVIEW_APPCONNECT'] == 'maya':
 		width = mc.getAttr("defaultResolution.w")
 		height = mc.getAttr("defaultResolution.h")
 
@@ -177,7 +177,7 @@ def getFrameRange():
 		(integer, integer).
 	"""
 	#if os.environ['IC_ENV'] == 'MAYA':
-	if os.environ['UHUB_UPREVIEW_APPCONNECT'] == 'maya':
+	if os.environ['PREVIEW_APPCONNECT'] == 'maya':
 		start = int(mc.playbackOptions(min=True, q=True))
 		end = int(mc.playbackOptions(max=True, q=True))
 
@@ -188,7 +188,7 @@ def getCurrentFrame():
 	""" Returns the current frame of scene/script/project file as an integer.
 	"""
 	#if os.environ['IC_ENV'] == 'MAYA':
-	if os.environ['UHUB_UPREVIEW_APPCONNECT'] == 'maya':
+	if os.environ['PREVIEW_APPCONNECT'] == 'maya':
 		frame = int(mc.currentTime(q=True))
 
 		return frame

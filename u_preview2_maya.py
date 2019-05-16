@@ -135,8 +135,8 @@ class Preview():
 
 	# Current project
 	def hudJob(self):
-		_job = os.environ['UHUB_JOB']  #JOB
-		_shot = os.environ['UHUB_SHOTID']  #SHOT
+		_job = os.environ['PREVIEW_JOB']
+		_shot = os.environ['PREVIEW_SHOT']
 		return '%s - %s' %(_job, _shot)
 
 	# Maya scene name
